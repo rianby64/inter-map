@@ -1,4 +1,4 @@
-package store2
+package store3
 
 import "github.com/pkg/errors"
 
@@ -7,7 +7,7 @@ var (
 )
 
 const (
-	bufferSize = 1 << 0
+	bufferSize = 1 << 4
 )
 
 type actionAdd struct {
@@ -20,16 +20,18 @@ type actionDel struct {
 }
 
 type actionGet struct {
-	key   string
-	value chan string
-	err   chan error
+	key string
 }
 
 type Storer struct {
 	addChan chan actionAdd
 	delChan chan actionDel
 	getChan chan actionGet
-	data    map[string]string
+
+	getResultValueChan chan string
+	getResultErrChan   chan error
+
+	data map[string]string
 }
 
 func New() *Storer {
@@ -38,6 +40,9 @@ func New() *Storer {
 		delChan: make(chan actionDel, bufferSize),
 		getChan: make(chan actionGet, bufferSize),
 		data:    make(map[string]string),
+
+		getResultValueChan: make(chan string, 1),
+		getResultErrChan:   make(chan error, 1),
 	}
 
 	go storer.processActions()
@@ -57,9 +62,9 @@ func (storer *Storer) processActions() {
 		case action := <-storer.getChan:
 			value, hasKey := storer.data[action.key]
 			if !hasKey {
-				action.err <- ErrNotFound
+				storer.getResultErrChan <- ErrNotFound
 			} else {
-				action.value <- value
+				storer.getResultValueChan <- value
 			}
 		}
 	}
@@ -80,22 +85,14 @@ func (storer *Storer) Delete(key string) error {
 }
 
 func (storer *Storer) Get(key string) (string, error) {
-	errChan := make(chan error, 1)
-	valueChan := make(chan string, 1)
-
-	defer close(errChan)
-	defer close(valueChan)
-
 	storer.getChan <- actionGet{
-		key:   key,
-		err:   errChan,
-		value: valueChan,
+		key: key,
 	}
 
 	select {
-	case err := <-errChan:
+	case err := <-storer.getResultErrChan:
 		return "", errors.Wrap(err, "cannot get")
-	case value := <-valueChan:
+	case value := <-storer.getResultValueChan:
 		return value, nil
 	}
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"inter/store2"
+	"inter/store1"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		fmt.Printf("duration: %v\n", time.Since(now))
 	}()
 
-	store := store2.New() // change here the implementation, and here we go
+	store := store1.New() // change here the implementation, and here we go
 	N := 5000000
 	myarr := make([]string, N)
 
@@ -42,7 +42,7 @@ func main() {
 			fmt.Printf("i = %d, value = %s :%v\n", i, key, err)
 
 			i = 0
-			time.Sleep(time.Millisecond * 100)
+			time.Sleep(time.Millisecond * 50)
 			continue
 		}
 
